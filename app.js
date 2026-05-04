@@ -27,7 +27,6 @@ app.use(express.static("public"));
 const mongoStore = MongoStore.create({
   mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions?retryWrites=true&w=majority`,
   collectionName: "sessions",
-  // removed crypto — it's causing a bug with this version of connect-mongo
 });
 
 app.use(
@@ -36,11 +35,11 @@ app.use(
     store: mongoStore,
     saveUninitialized: false,
     resave: true,
-    cookie: { maxAge: 60 * 60 * 1000 }, // 1 hour
+    cookie: { maxAge: 60 * 60 * 1000 },
   }),
 );
 
-// ── HOME PAGE ────────────────────────────────────────────────────────
+// Home Page
 app.get("/", (req, res) => {
   if (!req.session.authenticated) {
     res.send(`
@@ -57,7 +56,7 @@ app.get("/", (req, res) => {
   }
 });
 
-// ── SIGN UP PAGE ─────────────────────────────────────────────────────
+// Sign Up Page
 app.get("/signup", (req, res) => {
   res.send(`
     <h2>create user</h2>
@@ -70,11 +69,11 @@ app.get("/signup", (req, res) => {
   `);
 });
 
-// ── SIGN UP SUBMIT ───────────────────────────────────────────────────
+//Sign Up Sumbit
 app.post("/signupSubmit", async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Validate inputs with Joi (prevents NoSQL injection)
+  // Validate inputs with Joi
   const schema = Joi.object({
     name: Joi.string().max(20).required(),
     email: Joi.string().email().required(),
@@ -104,7 +103,7 @@ app.post("/signupSubmit", async (req, res) => {
   });
 });
 
-// ── LOGIN PAGE ───────────────────────────────────────────────────────
+// Login Page
 app.get("/login", (req, res) => {
   res.send(`
     <h2>log in</h2>
@@ -116,11 +115,11 @@ app.get("/login", (req, res) => {
   `);
 });
 
-// ── LOGIN SUBMIT ─────────────────────────────────────────────────────
+// Login Submit
 app.post("/loginSubmit", async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate inputs with Joi (prevents NoSQL injection)
+  // Validate inputs with Joi
   const schema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().max(20).required(),
@@ -160,9 +159,9 @@ app.post("/loginSubmit", async (req, res) => {
   });
 });
 
-// ── MEMBERS PAGE ─────────────────────────────────────────────────────
+// Members Page
 app.get("/members", (req, res) => {
-  console.log("Session at /members:", req.session); // temporary debug line
+  console.log("Session at /members:", req.session);
 
   if (!req.session.authenticated) {
     return res.redirect("/");
@@ -179,18 +178,18 @@ app.get("/members", (req, res) => {
   `);
 });
 
-// ── LOGOUT ───────────────────────────────────────────────────────────
+// Logout
 app.get("/logout", (req, res) => {
   req.session.destroy();
   res.redirect("/");
 });
 
-// ── 404 PAGE (must be last!) ─────────────────────────────────────────
+//  404 PAGE
 app.use((req, res) => {
   res.status(404).send("<h1>Page not found - 404</h1>");
 });
 
-// ── START SERVER (only after DB connects) ────────────────────────────
+// Start Server
 client
   .connect()
   .then(() => {
