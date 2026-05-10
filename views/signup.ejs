@@ -1,0 +1,25 @@
+<%- include('templates/header') %>
+
+<div class="row justify-content-center">
+  <div class="col-md-4">
+    <h2 class="mb-4">Create Account</h2>
+    <% if (error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+    <form action="/signupSubmit" method="post">
+      <div class="mb-3">
+        <input class="form-control" name="name" placeholder="Name" required>
+      </div>
+      <div class="mb-3">
+        <input class="form-control" name="email" type="email" placeholder="Email" required>
+      </div>
+      <div class="mb-3">
+        <input class="form-control" name="password" type="password" placeholder="Password" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Submit</button>
+    </form>
+    <p class="mt-3">Already have an account? <a href="/login">Log in</a></p>
+  </div>
+</div>
+
+<%- include('templates/footer') %>

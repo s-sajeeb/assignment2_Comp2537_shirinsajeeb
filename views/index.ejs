@@ -1,0 +1,19 @@
+<%- include('templates/header') %>
+
+<div class="d-flex flex-column align-items-center justify-content-center" style="min-height: 50vh;">
+  <% if (!authenticated) { %>
+    <h1 class="mb-4">Welcome!</h1>
+    <div>
+      <a href="/signup" class="btn btn-primary me-2">Sign up</a>
+      <a href="/login" class="btn btn-outline-primary">Log in</a>
+    </div>
+  <% } else { %>
+    <h1 class="mb-4">Hello, <%= name %>!</h1>
+    <div>
+      <a href="/members" class="btn btn-primary me-2">Go to Members Area</a>
+      <a href="/logout" class="btn btn-outline-danger">Logout</a>
+    </div>
+  <% } %>
+</div>
+
+<%- include('templates/footer') %>

@@ -7,7 +7,7 @@ const Joi = require("joi");
 const { MongoClient } = require("mongodb");
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const saltRounds = 12;
 
 const mongodb_host = process.env.MONGODB_HOST;
@@ -21,6 +21,7 @@ const atlasURI = `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_ho
 const client = new MongoClient(atlasURI);
 const userCollection = client.db(mongodb_database).collection("users");
 
+app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static("public"));
 
@@ -41,39 +42,21 @@ app.use(
 
 // Home Page
 app.get("/", (req, res) => {
-  if (!req.session.authenticated) {
-    res.send(`
-      <h1>Welcome</h1>
-      <a href="/signup"><button>Sign up</button></a><br><br>
-      <a href="/login"><button>Log in</button></a>
-    `);
-  } else {
-    res.send(`
-      <h1>Hello, ${req.session.name}!</h1>
-      <a href="/members"><button>Go to Members Area</button></a><br><br>
-      <a href="/logout"><button>Logout</button></a>
-    `);
-  }
+  res.render("index", {
+    authenticated: req.session.authenticated || false,
+    name: req.session.name || "",
+  });
 });
 
 // Sign Up Page
 app.get("/signup", (req, res) => {
-  res.send(`
-    <h2>create user</h2>
-    <form action='/signupSubmit' method='post'>
-      <input name='name' placeholder='name'><br><br>
-      <input name='email' placeholder='email'><br><br>
-      <input name='password' type='password' placeholder='password'><br><br>
-      <button type='submit'>Submit</button>
-    </form>
-  `);
+  res.render("signup", { error: null });
 });
 
-//Sign Up Sumbit
+// Sign Up Submit
 app.post("/signupSubmit", async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Validate inputs with Joi
   const schema = Joi.object({
     name: Joi.string().max(20).required(),
     email: Joi.string().email().required(),
@@ -82,44 +65,37 @@ app.post("/signupSubmit", async (req, res) => {
 
   const result = schema.validate({ name, email, password });
   if (result.error) {
-    const msg = result.error.details[0].message;
-    return res.send(`<p>${msg}</p><a href='/signup'>Try again</a>`);
+    return res.render("signup", { error: result.error.details[0].message });
   }
 
-  // Hash password before storing
   const hashedPassword = await bcrypt.hash(password, saltRounds);
-  await userCollection.insertOne({ name, email, password: hashedPassword });
+  await userCollection.insertOne({
+    name,
+    email,
+    password: hashedPassword,
+    user_type: "user",
+  });
 
-  // Save session then redirect
   req.session.authenticated = true;
   req.session.name = name;
   req.session.email = email;
+  req.session.user_type = "user";
 
   req.session.save((err) => {
-    if (err) {
-      console.error("Session save error:", err);
-    }
+    if (err) console.error("Session save error:", err);
     res.redirect("/members");
   });
 });
 
 // Login Page
 app.get("/login", (req, res) => {
-  res.send(`
-    <h2>log in</h2>
-    <form action='/loginSubmit' method='post'>
-      <input name='email' placeholder='email'><br><br>
-      <input name='password' type='password' placeholder='password'><br><br>
-      <button type='submit'>Submit</button>
-    </form>
-  `);
+  res.render("login", { error: null });
 });
 
 // Login Submit
 app.post("/loginSubmit", async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate inputs with Joi
   const schema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().max(20).required(),
@@ -127,55 +103,78 @@ app.post("/loginSubmit", async (req, res) => {
 
   const result = schema.validate({ email, password });
   if (result.error) {
-    return res.send(`<p>Invalid input.</p><a href='/login'>Try again</a>`);
+    return res.render("login", { error: "Invalid input." });
   }
 
-  // Find user by email
   const user = await userCollection.findOne({ email });
   if (!user) {
-    return res.send(
-      `<p>Invalid email/password combination.</p><a href='/login'>Try again</a>`,
-    );
+    return res.render("login", {
+      error: "Invalid email/password combination.",
+    });
   }
 
-  // Compare password with BCrypted hash
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
-    return res.send(
-      `<p>Invalid email/password combination.</p><a href='/login'>Try again</a>`,
-    );
+    return res.render("login", {
+      error: "Invalid email/password combination.",
+    });
   }
 
-  // Save session then redirect
   req.session.authenticated = true;
   req.session.name = user.name;
   req.session.email = user.email;
+  req.session.user_type = user.user_type;
 
   req.session.save((err) => {
-    if (err) {
-      console.error("Session save error:", err);
-    }
+    if (err) console.error("Session save error:", err);
     res.redirect("/members");
   });
 });
 
 // Members Page
 app.get("/members", (req, res) => {
-  console.log("Session at /members:", req.session);
-
   if (!req.session.authenticated) {
     return res.redirect("/");
   }
+  res.render("members", { name: req.session.name });
+});
 
-  // Pick a random image from /public folder
-  const images = ["image1.jpeg", "image2.jpeg", "image3.jpeg"];
-  const random = images[Math.floor(Math.random() * images.length)];
+// Admin Page
+app.get("/admin", async (req, res) => {
+  if (!req.session.authenticated) {
+    return res.redirect("/login");
+  }
+  if (req.session.user_type !== "admin") {
+    return res.status(403).render("403");
+  }
+  const users = await userCollection.find().toArray();
+  res.render("admin", { users });
+});
 
-  res.send(`
-    <h1>Hello, ${req.session.name}.</h1>
-    <img src='/${random}' width='300'><br><br>
-    <a href="/logout"><button>Sign out</button></a>
-  `);
+// Promote User
+app.get("/promoteUser", async (req, res) => {
+  const schema = Joi.object({ email: Joi.string().email().required() });
+  const result = schema.validate({ email: req.query.email });
+  if (result.error) return res.status(400).send("Invalid input.");
+
+  await userCollection.updateOne(
+    { email: req.query.email },
+    { $set: { user_type: "admin" } },
+  );
+  res.redirect("/admin");
+});
+
+// Demote User
+app.get("/demoteUser", async (req, res) => {
+  const schema = Joi.object({ email: Joi.string().email().required() });
+  const result = schema.validate({ email: req.query.email });
+  if (result.error) return res.status(400).send("Invalid input.");
+
+  await userCollection.updateOne(
+    { email: req.query.email },
+    { $set: { user_type: "user" } },
+  );
+  res.redirect("/admin");
 });
 
 // Logout
@@ -184,9 +183,9 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
-//  404 PAGE
+// 404 Page
 app.use((req, res) => {
-  res.status(404).send("<h1>Page not found - 404</h1>");
+  res.status(404).render("404");
 });
 
 // Start Server
