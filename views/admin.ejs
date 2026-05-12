@@ -2,9 +2,9 @@
 
 <h2 class="mb-4">Users</h2>
 <ul class="list-group">
-    <% for (let i = 0; i < users.length; i++) { %>
-        <%- include('templates/user',{user: user[i]}) %>
-    <% } %> 
+  <% for (let i = 0; i < users.length; i++) { %>
+    <%- include('templates/user', {user: users[i]}) %>
+  <% } %>
 </ul>
 
 <%- include('templates/footer') %>
